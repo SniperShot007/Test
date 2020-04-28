@@ -1,0 +1,160 @@
+import os
+import sys
+import subprocess
+import datetime
+from termcolor import colored
+from datetime import datetime
+import time
+import nmap
+
+user=['ccdadmin','ccduser','projadmin','demouser','admin','mysoreccd','ccduser','Administrator','administrator','Admin']
+passwd=['Welcome@123','Welcome@2020']
+vuln=[]
+ul=[]
+dl=[]
+ap=''
+locationlog=open("LocationLog.txt","w+")
+le=0
+nullips=[]
+then=datetime.now()
+start=time.asctime(time.localtime(time.time()))
+#f.writelines(start+"\n")
+print(then)
+locationlog.writelines("\n"+str(start)+"\n")
+def alivehost(dsnet):
+        if not dsnet=='':
+            print("started scan on  "+dsnet)
+            dpth=os.getcwd()
+            dsnets=dsnet.split("/")[0]+"-"+dsnet.split("/")[1]
+            dpath1=os.path.join(dpth,dsnets)
+            os.mkdir(dpath1)	
+            dpath2="LiveHosts.txt"
+            dpath3=os.path.join(dpath1,dpath2)
+            f=open(dpath3,'w')
+            dpath4="BadHosts.txt"
+            dpath5=os.path.join(dpath1,dpath4)
+            f1=open(dpath5,'w')
+            then=datetime.now()
+            command= dsnet+" 2>/dev/null"
+            cmd= ['fping', '-g', command]
+            sub = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+            locationlog.writelines("*****************************************")	
+            locationlog.writelines("\nStarting Segment spraying for  "+dsnet+"\n")
+            locationlog.writelines("-----------------------------------------")
+            for line in sub.stdout:
+                line=line.strip()
+                line=line.decode("utf-8")	
+                global le
+                le=le+1
+                ip = line.split(" ",1)[0]
+                if "is alive" in line:
+                    ul.append(ip)
+                    f.writelines(ip+"\n")
+        
+                elif "is unreachable" in line:
+                    dl.append(ip)
+                    f1.writelines(ip+"\n")
+            msg1="\nFound "+str(len(ul))+" Machines Alive Out of "+str(le)+"\n"
+            locationlog.writelines(msg1)
+            #f.writelines("")
+            f.close()
+            #f1.writelines("\n")
+            f1.close()
+            print(msg1)
+            sub.stdout.close()
+
+def sessions(command1,smbip,cred0,cred1,snet):
+        thn=datetime.now()
+        #print(command1)
+        sub = subprocess.Popen(command1, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE,stderr=subprocess.PIPE, close_fds=True)
+        for l in sub.stdout:
+                l=l.decode("utf-8")
+                #print(l)
+                if l.startswith('[-] SMB SessionError: STATUS_LOGON_FAILURE(The attempted logon is invalid'):
+                        comu1=colored(""+smbip+" Bad Credentials "+cred0+" "+cred1+"\n",'blue')
+                        print(comu1)
+                        #print (""+smbip+" Bad Credentials "+cred0+" "+cred1+"\n")
+                        #lg.writelines("\n"+smbip+"--"+"Bad Credentials"+"\n")
+                elif l.startswith('Connection Established pa..'):
+                        comu2=colored("Successfully Logged into  "+smbip+"\n")
+                        print(comu2)
+                        locationlog.writelines("\n"+smbip+"--"+ "Login Successful with "+cred0+" "+cred1+"\n")
+                        communication=" "+smbip+"  -- Login Details: "+""+cred0+" with "+cred1
+                        vuln.append(communication)
+                #lg.close()
+        sub.stdout.close()
+
+def communications(live,subnet):
+        if not live=="":
+                #print(live)
+                nm=nmap.PortScanner()
+                nm.scan(live,'139,445')
+        try:
+                if nm[live]['tcp'][139]['state']=='open' or nm[live]['tcp'][445]['state']=='open':
+                        print("\nSMB port is Open... \n")
+                        ap=live
+                        msg2="Connecting to "+ap+"\n"
+                        print(msg2)
+                        #f.writelines("\n"+msg2)
+                        for p in passwd:
+                                for u in user:
+                                        target_ip= u+":"+p+"@"+ap 
+                                        #print(target_ip)
+                                        cmd= ['python3','myclient.py', target_ip]
+                                        cmd2=['python','myclient.py', ap]
+                                        sessions(cmd,ap,u,p,subnet)
+        except:
+                print("")
+systems=sys.argv[1]
+snet=[]
+system=open(systems,"r")
+all=0
+attempt=0
+for subnet in system:
+	#print("1111----1111")
+	if subnet=='':
+            break
+	else:	
+            sunet=subnet.rstrip("\n")
+            #print("checking for"+sunet)
+            alivehost(sunet)
+            pth=os.getcwd()
+            #print(sunet)
+            snets=sunet.split("/")[0]+"-"+sunet.split("/")[1]
+            path1=os.path.join(pth,snets)
+            path2="LiveHosts.txt"
+            path3=os.path.join(path1,path2)
+            f=open(path3,'r')
+            true_details=[]
+            for ip in f.readlines():
+                    if ip=='':
+                        break
+                    else:
+                        #print("entering to nmap scan for "+ip)
+                        liveip=ip.rstrip("\n")
+                        ul.append(ip)
+                        communications(liveip,subnet)
+                        all+=1
+            ul=[]
+            le=0
+            f.close()
+
+system.close()
+now=datetime.now()
+dur=now-then
+dur_s=dur.total_seconds()
+hours=divmod(dur_s,3600)[0]
+minutes=divmod(dur_s,60)[0]
+
+print("\nSuccessfully covered "+str(all)+" machines in location " +"ip segment in "+str(hours)+" hours, "+str(minutes)+" minutes.\n")
+locationlog.writelines("\nSuccessfully covered "+str(all)+" machines in entire " +"ip segment in "+str(hours)+" hours, "+str(minutes)+" minutes.\n")
+cls=time.asctime(time.localtime(time.time()))
+locationlog.writelines("\n")
+all=0
+for v in vuln:
+        
+        print (v+"\n")
+        locationlog.writelines(v+"\n")
+locationlog.writelines("\n"+cls+"\n")
+locationlog.close()
+
