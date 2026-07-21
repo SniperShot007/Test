@@ -1,15 +1,19 @@
-name: F39-Phase4-WIF-OIDC
+name: F39-S162-WildcardGlob
+
 on:
   push:
     branches: [master]
   workflow_dispatch:
+
 permissions:
   id-token: write
   contents: read
+
 jobs:
   phase4:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: GitHub OIDC to T1 WIF Exchange
+
+      - name: F39 S162 Wildcard Glob Hypothesis Test
         run: python3 phase4_exchange.py
